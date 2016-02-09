@@ -2,11 +2,9 @@ import random
 
 
 class IONode:
-    def __init__(self):
-        self.isEndNode = False  # end nodes always are stuck right onto a neuron's output
-
-        self.value = 0
-        self.connections = []
+    isEndNode = False  # also, end nodes always are stuck right onto a neuron's output
+    value = 0
+    connections = []
 
     def update(self):
         if self.isEndNode:
@@ -17,7 +15,7 @@ class NeuralConnection:
         self.inputObject = None   # the input or neuron providing a value
         self.outputObject = None  # the output or neuron receiving a value
 
-        self.weight = random.randint(-10, 10)
+        self.weight = random.randint(-10, 10)  # todo: fix this
         self.weightedValue = 0
 
     def update(self):
