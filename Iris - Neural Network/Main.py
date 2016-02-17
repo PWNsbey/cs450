@@ -21,6 +21,6 @@ print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 wizard = Wizard(dataset)
 workingDatasets = wizard.organize_data()
 
-nodeLayersArray = [1]
+nodeLayersArray = [1]  # LAST NEURON LAYER SHOULD BE DETERMINED BY NUMBER OF POSSIBLE TARGETS
 Iris = Iris()
 Iris.train(workingDatasets[0], nodeLayersArray)

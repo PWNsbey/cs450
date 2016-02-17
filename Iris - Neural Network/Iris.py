@@ -28,8 +28,9 @@ class Iris:
 
         # initialize the neural network
         self.initializeNetwork(trainingExamples)
-        self.printNetwork()
         self.connectNetLayers()
+
+        self.printNetwork()
 
     def initializeNetwork(self, trainingExamples):
         print("Initializing network...")
@@ -43,123 +44,173 @@ class Iris:
         # now the body. alternating connections and neurons
         connectionNeuronArray = []  # temp array to append into the main one
         for i in range(len(self.nodeLayersArray)):  # for each layer...
+            # connection layer
+            for j in range(self.nodeLayersArray[i]):
+                # one connection for each previous input * next layer
+                previousInputLen = len(self.neuralNetwork[len(self.neuralNetwork) - 2])
+                for k in range(previousInputLen):
+                    connectionNeuronArray.append(BM.NeuralConnection)
+            self.neuralNetwork.append(connectionNeuronArray)
+            print("Connection layer initialized with", len(connectionNeuronArray), "connections.")
+
             #neuron layer
+            connectionNeuronArray = []
             for j in range(self.nodeLayersArray[i]):
                 connectionNeuronArray.append(BM.Neuron)
             self.neuralNetwork.append(connectionNeuronArray)
             print("Neuron layer initialized with    ", len(connectionNeuronArray), "neurons.")
 
-            # connection layer
-            connectionNeuronArray = []
-            for j in range(self.nodeLayersArray[i]):
-                # one connection for each previous input * next layer
-                previousInputLen = len(self.neuralNetwork[len(self.neuralNetwork) - 2])
-                for k in range((previousInputLen * self.nodeLayersArray[i])):
-                    connectionNeuronArray.append(BM.NeuralConnection)
-            self.neuralNetwork.append(connectionNeuronArray)
-            print("Connection layer initialized with", len(connectionNeuronArray), "connections.")
-
         # finally, the output nodes
         outputNodes = []
         for i in range(len(self.neuralNetwork[len(self.neuralNetwork) - 1])):
             outputNodes.append(BM.IONode)
+            # make sure the node knows this is the end
+            outputNodes[i].isEndNode = True;
         self.neuralNetwork.append(outputNodes)
         print("Output nodes initialized with    ", len(outputNodes), "endNodes.")
 
+        # sets the index numbers for each network element so I don't have to do any more index() nonsense
+        self.setRefNumbers()
+
         print("===Network fully initialized!===")
 
+    # simply loops through the network and gives each element its own index reference number.
+    def setRefNumbers(self):
+        for i in range(len(self.neuralNetwork)):
+            for j in range(len(self.neuralNetwork[i])):
+                self.neuralNetwork[i][j].networkIndexRef = j
+                print("refNumber set to:", self.neuralNetwork[i][j].networkIndexRef)
+
+    # connects element i's output to the next element's input. Connects next input back to i's output.
     def connectNetLayers(self):
-        for i in range(len(self.neuralNetwork)):
-            if i == 0:  # if this in the input array...
-                divConnectionNum = int(len(self.neuralNetwork[i + 1]) / len(self.neuralNetwork[i]))
-                tempModNum = 0
-                for j in range(len(self.neuralNetwork[i])):  # for each input node...
-                    for l in range(tempModNum, (tempModNum - 1) + divConnectionNum):
-                        self.neuralNetwork[i][j].connections.append(self.neuralNetwork[i+1][l])
-                        self.neuralNetwork[i+1][l].inputObject = self.neuralNetwork[i][j]
-                    tempModNum += divConnectionNum
+        for i in range(len(self.neuralNetwork) - 1):
+            # inputNode - neuralConnection
+            if i == 0:
+                connectionIndex = 0  # keeps track of which connection can next be claimed by an inputNode
+                for j in range(len(self.neuralNetwork[i])):  # for each input node
+                    print("connecting inputNode to connection...")
+                    for k in range(len(self.neuralNetwork[i+2])):  # one connection per neuron
+                        # connect i to i+1
+                        self.neuralNetwork[i][j].connections.append(self.neuralNetwork[i+1][connectionIndex])
+                        # connect i+1 to i
+                        self.neuralNetwork[i+1][connectionIndex].inputObject = self.neuralNetwork[i][j]
+                        # this connection is now claimed. Increment the index counter
+                        connectionIndex += 1
 
-            if i == len(self.neuralNetwork) - 1:  # if this is the final node array...
-                for j in range(len(self.neuralNetwork[i])):
+            # neuralConnection - Neuron
+            elif self.neuralNetwork[i][0] is BM.NeuralConnection:
+                # the number of connections that come from each input. They lie in chunks together in the list
+                inputChunkSize = len(self.neuralNetwork[i+1])
+                # the relative number of this connection in the chunk
+                # also corresponds to which neuron gets this (j) connection
+                currentChunkMember = 0
+                for j in range(len(self.neuralNetwork[i])):  # for each connection
+                    print("connecting connection to neuron...")
+                    # set the relative number to 0 if we're in the next chunk already
+                    if currentChunkMember >= inputChunkSize:
+                        currentChunkMember = 0
+                    # connect i to i+1
+                    self.neuralNetwork[i][j].outputObject = self.neuralNetwork[i+1][currentChunkMember]
+                    # connect i+1 to i
+                    self.neuralNetwork[i+1][currentChunkMember].incomingConnections.append(self.neuralNetwork[i][j])
+                    # update the inter-chunk reference number
+                    currentChunkMember += 1
+
+            # neuron - neuralConnection
+            elif self.neuralNetwork[i][0] is BM.Neuron and self.neuralNetwork[i+1][0] is BM.NeuralConnection:
+                connectionIndex = 0  # keeps track of which connection can next be claimed by a neuron
+                for j in range(len(self.neuralNetwork[i])):  # for each neuron
+                    print("connecting neuron to connection...")
+                    for k in range(len(self.neuralNetwork[i+2])):  # one connection per next-layer neuron
+                        # connect i to i+1
+                        self.neuralNetwork[i][j].outgoingConnections.append(self.neuralNetwork[i+1][connectionIndex])
+                        # connect i+1 to i
+                        self.neuralNetwork[i+1][connectionIndex].inputObject = self.neuralNetwork[i][j]
+                        # this connection is now claimed. Increment the index counter
+                        connectionIndex += 1
+
+            # neuron - endNode
+            # this one is a one-to-one relationship, so it's pretty straightforward
+            elif i == len(self.neuralNetwork) - 1:
+                for j in range(len(self.neuralNetwork[i])):  # for each neuron
+                    print("connecting neuron to endNode")
+                    # connect i to i+1
                     self.neuralNetwork[i][j].outgoingConnections.append(self.neuralNetwork[i+1][j])
+                    # connect i+1 to i
+                    self.neuralNetwork[i+1][j].connections.append(self.neuralNetwork[i][j])
 
-            # neural connections
-            if self.neuralNetwork[i][0] is BM.NeuralConnection:
-                tempModNum = 0
-                for j in range(tempModNum, (tempModNum - 1) + divConnectionNum):
-                    self.neuralNetwork[i][j].outputObject = self.neuralNetwork[i+1][j]
-                    self.neuralNetwork[i+1][j].incomingConnections.append(self.neuralNetwork[i][j])
-                tempModNum += divConnectionNum
-            else:  # neurons to connections
-                divConnectionNum = int(len(self.neuralNetwork[i+1]) / len(self.neuralNetwork[i]))
-                tempModNum = 0
-                for j in range(len(self.neuralNetwork[i])):
-                    for k in range(tempModNum, (tempModNum - 1) + divConnectionNum):
-                        self.neuralNetwork[i][j].outgoingConnections.append(self.neuralNetwork[i][k])
-                    tempModNum += divConnectionNum
+        print("===All layers connected!===")
 
+    # prints the network in its own html file. So fancy.
     def printNetwork(self):
-        netDisplayRow = []
-        netDisplayCol = []
-
-        # the "lowest-reaching" column in neuralNetwork
-        maxColNumber = 0
+        # i corresponds to <tr>s.
+        tableContentString = "<table><tr>"
         for i in range(len(self.neuralNetwork)):
-            if len(self.neuralNetwork[i]) > maxColNumber:
-                maxColNumber = len(self.neuralNetwork[i])
+            # j corresponds to <td>s.
+            tableContentString += "<td>"
+            for j in range(len(self.neuralNetwork[i])):
+                tableContentString += self.stringify(i, j) + "<br>"
+            # finisher strings below. Don't panic.
+            tableContentString += "</td>"
+        tableContentString += "</tr></table>"
 
-        for i in range(len(self.neuralNetwork)):
-            for j in range(maxColNumber):
-                if self.neuralNetwork[i][j]:
-                    netDisplayRow.append(self.neuralNetwork[i][j])
-                else:
-                    netDisplayRow.append(None)
-            netDisplayCol.append(netDisplayRow)
+        # this is what actually goes in the file
+        headString = "<head><link rel=\"stylesheet\" type=\"text/css\" href=\"stylesheet.css\"/></head>"
+        htmlString = "<!DOCTYPE html><html>" + headString + "<body>" + tableContentString + "</body></html>"
 
-        # on to the display stuff
-        for i in range(len(netDisplayRow)):
-            printString = ""
+        file = open("networkVisual.html", "w")
+        file.write(htmlString)
+        file.close()
 
-            for j in range(len(netDisplayCol)):
-                if netDisplayCol[i][j] is BM.IONode:
-                    nodeAlias = netDisplayCol[i][j]
+    # makes a fancy-looking string object for each type of object in the network
+    def stringify(self, i, j):
+        fancyString = ""
+        objectAlias = self.neuralNetwork[i][j]
 
-                    if nodeAlias.isEndNode:
-                        connectionRef = netDisplayCol[i-1].index(nodeAlias.connections[0])
-                        printString += str(connectionRef) + "<" + str(nodeAlias.value)
-                    else:
-                        connectionRef = netDisplayCol[i+1].index(nodeAlias.connections[0])
-                        printString += str(nodeAlias.value) + ">" + str(connectionRef)
-                    printString += " "
-                elif netDisplayCol[i][j] is BM.NeuralConnection:
-                    connectionAlias = netDisplayCol[i][j]
-                    incoming = netDisplayCol[i-1].index(connectionAlias.inputObject)
-                    outgoing = netDisplayCol[i+1].index(connectionAlias.outputObject)
+        # handle BOTH input AND output nodes
+        if objectAlias is BM.IONode:
+            # inputNodes
+            if objectAlias.isEndNode == False:
+                # value and symbol
+                fancyString = str(objectAlias.value) + ">"
+                # add all connections
+                for i in range(len(objectAlias.connections)):
+                    fancyString += str(objectAlias.connections[i].networkIndexRef)
+                    # if it isn't the last connection, add a comma and a space
+                    if i < len(objectAlias.connections):
+                        fancyString += ", "
+            # outputNodes
+            else:
+                # add all connections
+                for i in range(len(objectAlias.connections)):
+                    fancyString += str(objectAlias.connections[i].networkIndexRef)
+                    # if it isn't the last connection, add a comma
+                    if i != len(objectAlias.connections) - 1:
+                        fancyString += ","
+                                # value and symbol
+                fancyString += "<" + str(objectAlias.value)
 
-                    valuesString = "--w" + str(connectionAlias.weight) + "v" + str(connectionAlias.weightedValue)
-                    printString += ("-" + str(incoming) + valuesString + str(outgoing) + "-")
-                    printString += " "
-                else:  # is neurons
-                    neuronAlias = netDisplayCol[i][j]
-                    incomingConnections = netDisplayCol[i-1].index(neuronAlias.incomingConnections)
-                    outgoingConnections = netDisplayCol[i+i].index(neuronAlias.outgoingConnections)
+        # handle connections
+        elif objectAlias is BM.NeuralConnection:
+            fancyString = str(objectAlias.inputObject.networkIndexRef)
+            fancyString += "---w:" + str(objectAlias.weight) + "v:" + str(objectAlias.weightedValue) + "---"
+            fancyString += str(objectAlias.outputObject.networkIndexRef)
 
-                    incomingString = ""
-                    for k in range(len(incomingConnections)):
-                        incomingString += str(k) + "(" + str(incomingConnections[k].weightedValue) + ")"
-                        if k != len(incomingConnections) - 1:
-                            incomingString += ", "
+        # handle neurons
+        elif objectAlias is BM.Neuron:
+            # add all incoming connections
+            for i in range(len(objectAlias.incomingConnections)):
+                fancyString += str(objectAlias.incomingConnections[i].networkIndexRef)
+                # if it isn't the last connection, add a comma
+                if i < len(objectAlias.incomingConnections):
+                    fancyString += ","
+            # add inner values
+            fancyString += "[t:" + str(objectAlias.threshold) + "v:" + str(objectAlias.outputValue) + "]"
+            # add all outgoing connections
+            for i in range(len(objectAlias.outgoingConnections)):
+                fancyString += str(objectAlias.outgoingConnections[i].networkIndexRef)
+                # if it isn't the last connection, add a comma
+                if i < len(objectAlias.outgoingConnections):
+                    fancyString += ","
 
-                    outgoingString = ""
-                    for k in range(len(outgoingConnections)):
-                        if outgoingConnections[k] is BM.IONode:
-                            outgoingString += str(k) + "(" + str(outgoingConnections[k].value) + ")"
-                        else:  # then it's a connection
-                            outgoingString += str(k) + "(" + str(outgoingConnections[k].weightedValue) + ")"
-                        if k != len(outgoingConnections) - 1:
-                            outgoingString += ", "
-
-                    bodyString = "T:" + str(neuronAlias.threshold) + " O:" + str(neuronAlias.outputValue)
-                    printString += "[" + incomingString + "]" + bodyString + "[" + outgoingString + "]"
-
-            print(printString)
+        return fancyString

@@ -6,17 +6,20 @@ class IONode:
     value = 0
     connections = []
 
+    networkIndexRef = 0
+
     def update(self):
         if self.isEndNode:
             self.value = self.connection.outputValue
 
 class NeuralConnection:
-    def __init__(self):
-        self.inputObject = None   # the input or neuron providing a value
-        self.outputObject = None  # the output or neuron receiving a value
+    inputObject = None   # the input or neuron providing a value
+    outputObject = None  # the output or neuron receiving a value
 
-        self.weight = random.randint(-10, 10)  # todo: fix this
-        self.weightedValue = 0
+    weight = (random.randint(-10, 10))/10  # todo: fix this
+    weightedValue = 0
+
+    networkIndexRef = 0
 
     def update(self):
         self.computeWeightedValue()
@@ -28,12 +31,13 @@ class NeuralConnection:
             self.weightedValue = self.inputObject.outputValue * self.weight
 
 class Neuron:
-    def __init__(self):
-        self.incomingConnections = []  # all connections linking to this neuron
-        self.outgoingConnections = []  # all outgoing connections leaving this neuron
+    incomingConnections = []  # all connections linking to this neuron
+    outgoingConnections = []  # all outgoing connections leaving this neuron
 
-        self.threshold = 0
-        self.outputValue = 0
+    threshold = 0
+    outputValue = 0
+
+    networkIndexRef = 0
 
     def update(self):
         sum = 0
