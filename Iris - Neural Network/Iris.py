@@ -16,6 +16,9 @@ class Iris:
         # how fast weights are modified
         self.learningRate = .2
 
+        # the accuracy of this version of Iris! Given in percentage (float between 0 and 1)
+        self.accuracy = 0
+
     def train(self, trainingExamples, nodeLayersArray):
         self.trainingExamples = trainingExamples
         self.nodeLayersArray = nodeLayersArray
@@ -35,11 +38,16 @@ class Iris:
 
         # begin training!
         for i in range(len(self.trainingExamples)):
-            self.updateNetwork(i)
-            self.exactDiscipline(i)
+            self.updateNetwork(i)  # standard - just moves values through the network
+            self.exactDiscipline(i)  # actually modifies the weights. This is where the learning happens.
 
     def test(self, testingExamples):
-        pass
+        numCorrect = 0  # what it says on the tin
+        for i in range(testingExamples):
+            self.updateNetwork(i)  # just the standard stuff - no learning
+
+            # lets check for accuracy now.
+
 
     def initializeNetwork(self, trainingExamples):
         print("Initializing network...")
@@ -183,6 +191,7 @@ class Iris:
         for i in range(len(outputNodesAlias)):
             resultArray.append(outputNodesAlias[i].value)
 
+        # TODO: PUT THIS IN IT'S OWN "CHECKER" FUNCTION. ALSO BE SURE *ALL* BAD NEURONS GET DISCIPLINED
         # Right, that's enough with the variables. Now on to DISCIPLINE.
         # First, a comparison.
         badNeuron = -1  # innocent until proven guilty. A -1 denotes innocence. This is a fact, I am a lawyer.
