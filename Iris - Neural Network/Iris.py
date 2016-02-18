@@ -1,6 +1,5 @@
 import BrainMatter as BM
-from decimal import *
-import LazyDevTools as lds
+import random
 
 
 class Iris:
@@ -13,7 +12,7 @@ class Iris:
 
         # essentially a 2D array. holds each 'column' of the network.
         self.neuralNetwork = []
-
+        
     def train(self, trainingExamples, nodeLayersArray):
         self.trainingExamples = trainingExamples
         self.nodeLayersArray = nodeLayersArray
@@ -30,6 +29,13 @@ class Iris:
         self.initializeNetwork(trainingExamples)
         self.connectNetLayers()
 
+        self.updateNetwork(0)
+
+        # run teh tests!
+        for i in range(len(self.trainingExamples)):
+            self.updateNetwork(i)
+            self.exactDiscipline(i)
+
         self.printNetwork()
 
     def initializeNetwork(self, trainingExamples):
@@ -37,9 +43,10 @@ class Iris:
         # input nodes
         inputNodes = []
         for i in range(len(trainingExamples[0].data)):
-            inputNodes.append(BM.IONode)
+            inputNode = BM.IONode()
+            inputNodes.append(inputNode)
         self.neuralNetwork.append(inputNodes)
-        print("Input nodes initialized with     ", len(inputNodes), "nodes.")
+        print("Input nodes initialized with", len(inputNodes), "nodes.")
 
         # now the body. alternating connections and neurons
         connectionNeuronArray = []  # temp array to append into the main one
@@ -49,25 +56,29 @@ class Iris:
                 # one connection for each previous input * next layer
                 previousInputLen = len(self.neuralNetwork[len(self.neuralNetwork) - 2])
                 for k in range(previousInputLen):
-                    connectionNeuronArray.append(BM.NeuralConnection)
+                    connection = BM.NeuralConnection()
+                    connection.weight = float(random.randint(-10, 10)/10)
+                    connectionNeuronArray.append(connection)
             self.neuralNetwork.append(connectionNeuronArray)
             print("Connection layer initialized with", len(connectionNeuronArray), "connections.")
 
             #neuron layer
             connectionNeuronArray = []
             for j in range(self.nodeLayersArray[i]):
-                connectionNeuronArray.append(BM.Neuron)
+                neuron = BM.Neuron()
+                connectionNeuronArray.append(neuron)
             self.neuralNetwork.append(connectionNeuronArray)
             print("Neuron layer initialized with    ", len(connectionNeuronArray), "neurons.")
 
         # finally, the output nodes
         outputNodes = []
         for i in range(len(self.neuralNetwork[len(self.neuralNetwork) - 1])):
-            outputNodes.append(BM.IONode)
+            outputNode = BM.IONode()
+            outputNodes.append(outputNode)
             # make sure the node knows this is the end
-            outputNodes[i].isEndNode = True;
+            outputNodes[i].isEndNode = True
         self.neuralNetwork.append(outputNodes)
-        print("Output nodes initialized with    ", len(outputNodes), "endNodes.")
+        print("Output nodes initialized with", len(outputNodes), "endNodes.")
 
         # sets the index numbers for each network element so I don't have to do any more index() nonsense
         self.setRefNumbers()
@@ -98,7 +109,7 @@ class Iris:
                         connectionIndex += 1
 
             # neuralConnection - Neuron
-            elif self.neuralNetwork[i][0] is BM.NeuralConnection:
+            elif isinstance(self.neuralNetwork[i][0], BM.NeuralConnection):
                 # the number of connections that come from each input. They lie in chunks together in the list
                 inputChunkSize = len(self.neuralNetwork[i+1])
                 # the relative number of this connection in the chunk
@@ -117,7 +128,7 @@ class Iris:
                     currentChunkMember += 1
 
             # neuron - neuralConnection
-            elif self.neuralNetwork[i][0] is BM.Neuron and self.neuralNetwork[i+1][0] is BM.NeuralConnection:
+            elif isinstance(self.neuralNetwork[i][0], BM.Neuron) and isinstance(self.neuralNetwork[i+1][0], BM.NeuralConnection):
                 connectionIndex = 0  # keeps track of which connection can next be claimed by a neuron
                 for j in range(len(self.neuralNetwork[i])):  # for each neuron
                     print("connecting neuron to connection...")
@@ -131,7 +142,7 @@ class Iris:
 
             # neuron - endNode
             # this one is a one-to-one relationship, so it's pretty straightforward
-            elif i == len(self.neuralNetwork) - 1:
+            elif i == len(self.neuralNetwork) - 2:
                 for j in range(len(self.neuralNetwork[i])):  # for each neuron
                     print("connecting neuron to endNode")
                     # connect i to i+1
@@ -140,6 +151,21 @@ class Iris:
                     self.neuralNetwork[i+1][j].connections.append(self.neuralNetwork[i][j])
 
         print("===All layers connected!===")
+
+    # moves all values through the network
+    def updateNetwork(self, exampleNumber):
+        for i in range(len(self.neuralNetwork)):
+            for j in range(len(self.neuralNetwork[i])):
+                # The first IONodes should get raw values, not be updated
+                if i == 0:
+                    self.neuralNetwork[i][j].value = self.trainingExamples[exampleNumber].data[j]
+                # everything else just runs their update functions
+                else:
+                    self.neuralNetwork[i][j].update()
+
+    # corrects weight values. This is where the learning happens.
+    def exactDiscipline(self, exampleNumber):
+        pass
 
     # prints the network in its own html file. So fancy.
     def printNetwork(self):
@@ -168,16 +194,16 @@ class Iris:
         objectAlias = self.neuralNetwork[i][j]
 
         # handle BOTH input AND output nodes
-        if objectAlias is BM.IONode:
+        if isinstance(objectAlias, BM.IONode):
             # inputNodes
             if objectAlias.isEndNode == False:
                 # value and symbol
-                fancyString = str(objectAlias.value) + ">"
+                fancyString = "<b>" + str(objectAlias.value) + "></b>"
                 # add all connections
                 for i in range(len(objectAlias.connections)):
                     fancyString += str(objectAlias.connections[i].networkIndexRef)
                     # if it isn't the last connection, add a comma and a space
-                    if i < len(objectAlias.connections):
+                    if i < len(objectAlias.connections) - 1:
                         fancyString += ", "
             # outputNodes
             else:
@@ -187,30 +213,50 @@ class Iris:
                     # if it isn't the last connection, add a comma
                     if i != len(objectAlias.connections) - 1:
                         fancyString += ","
-                                # value and symbol
-                fancyString += "<" + str(objectAlias.value)
+                # symbol and value
+                fancyString += "<b><" + str(objectAlias.value) + "</b>"
 
         # handle connections
-        elif objectAlias is BM.NeuralConnection:
+        elif isinstance(objectAlias, BM.NeuralConnection):
             fancyString = str(objectAlias.inputObject.networkIndexRef)
-            fancyString += "---w:" + str(objectAlias.weight) + "v:" + str(objectAlias.weightedValue) + "---"
+            # makes sure that everything lines up pretty because the negative signs are triggering my OCD
+            if objectAlias.weight >= 0:
+                fancyString += "<b>---w: " + str(objectAlias.weight)
+            else:
+                fancyString += "<b>---w:" + str(objectAlias.weight)
+            # same here
+            if objectAlias.weightedValue >= 0:
+                fancyString += " v: " + str(round(objectAlias.weightedValue, 1)) + "---</b>"
+            else:
+                fancyString += " v:" + str(round(objectAlias.weightedValue, 1)) + "---</b>"
             fancyString += str(objectAlias.outputObject.networkIndexRef)
 
         # handle neurons
-        elif objectAlias is BM.Neuron:
+        elif isinstance(objectAlias, BM.Neuron):
             # add all incoming connections
+            # if there's no number bigger than 9 here, add a space because OCD
+            hasGreaterThanTen = False
             for i in range(len(objectAlias.incomingConnections)):
+                # ocd check
+                if objectAlias.incomingConnections[i].networkIndexRef > 9:
+                    hasGreaterThanTen = True
+                # now the string append
                 fancyString += str(objectAlias.incomingConnections[i].networkIndexRef)
                 # if it isn't the last connection, add a comma
-                if i < len(objectAlias.incomingConnections):
+                if i < len(objectAlias.incomingConnections) - 1:
                     fancyString += ","
+                # we want to add that OCD space before the -1 that indicates the bias node
+                if i == len(objectAlias.incomingConnections) - 2:
+                    if hasGreaterThanTen == False:
+                        fancyString += " "
+
             # add inner values
-            fancyString += "[t:" + str(objectAlias.threshold) + "v:" + str(objectAlias.outputValue) + "]"
+            fancyString += "<b>[t:" + str(objectAlias.threshold) + "v:" + str(objectAlias.outputValue) + "]</b>"
             # add all outgoing connections
             for i in range(len(objectAlias.outgoingConnections)):
                 fancyString += str(objectAlias.outgoingConnections[i].networkIndexRef)
                 # if it isn't the last connection, add a comma
-                if i < len(objectAlias.outgoingConnections):
+                if i < len(objectAlias.outgoingConnections) - 1:
                     fancyString += ","
 
         return fancyString

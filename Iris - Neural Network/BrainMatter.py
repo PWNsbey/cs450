@@ -2,44 +2,58 @@ import random
 
 
 class IONode:
-    isEndNode = False  # also, end nodes always are stuck right onto a neuron's output
-    value = 0
-    connections = []
+    def __init__(self):
+        self.isEndNode = False  # also, end nodes always are stuck right onto a neuron's output
+        self.value = 0
+        self.connections = []
 
-    networkIndexRef = 0
+        self.networkIndexRef = 0
 
     def update(self):
         if self.isEndNode:
-            self.value = self.connection.outputValue
+            self.value = self.connections[0].outputValue
 
 class NeuralConnection:
-    inputObject = None   # the input or neuron providing a value
-    outputObject = None  # the output or neuron receiving a value
+    def __init__(self):
+        self.inputObject = None   # the input or neuron providing a value
+        self.outputObject = None  # the output or neuron receiving a value
 
-    weight = (random.randint(-10, 10))/10  # todo: fix this
-    weightedValue = 0
+        self.weight = 0
+        self.weightedValue = 0
 
-    networkIndexRef = 0
+        self.networkIndexRef = 0
 
     def update(self):
         self.computeWeightedValue()
 
     def computeWeightedValue(self):
-        if self.inputObject is IONode:
+        if isinstance(self.inputObject, IONode):
             self.weightedValue = self.inputObject.value * self.weight
         else:  # if not, it should be a Neuron. SHOULD.
             self.weightedValue = self.inputObject.outputValue * self.weight
 
 class Neuron:
-    incomingConnections = []  # all connections linking to this neuron
-    outgoingConnections = []  # all outgoing connections leaving this neuron
+    def __init__(self):
+        self.incomingConnections = []  # all connections linking to this neuron
+        self.outgoingConnections = []  # all outgoing connections leaving this neuron
+        self.biasNodeConnection = None
 
-    threshold = 0
-    outputValue = 0
+        self.threshold = 0
+        self.outputValue = 0
 
-    networkIndexRef = 0
+        self.networkIndexRef = 0
 
     def update(self):
+        # configure the bias
+        if self.biasNodeConnection is None:
+            self.biasNodeConnection = NeuralConnection()
+            self.biasNodeConnection.inputObject = IONode()
+            self.biasNodeConnection.weight = float(random.randint(-10, 10)/10)
+            self.biasNodeConnection.inputObject.value = -1
+            self.biasNodeConnection.networkIndexRef = -1
+            self.biasNodeConnection.update()
+            self.incomingConnections.append(self.biasNodeConnection)
+
         sum = 0
         for i in range(len(self.incomingConnections)):
             sum += self.incomingConnections[i].weightedValue
