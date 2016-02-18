@@ -12,7 +12,10 @@ class Iris:
 
         # essentially a 2D array. holds each 'column' of the network.
         self.neuralNetwork = []
-        
+
+        # how fast weights are modified
+        self.learningRate = .2
+
     def train(self, trainingExamples, nodeLayersArray):
         self.trainingExamples = trainingExamples
         self.nodeLayersArray = nodeLayersArray
@@ -28,15 +31,15 @@ class Iris:
         # initialize the neural network
         self.initializeNetwork(trainingExamples)
         self.connectNetLayers()
-
         self.updateNetwork(0)
 
-        # run teh tests!
+        # begin training!
         for i in range(len(self.trainingExamples)):
             self.updateNetwork(i)
             self.exactDiscipline(i)
 
-        self.printNetwork()
+    def test(self, testingExamples):
+        pass
 
     def initializeNetwork(self, trainingExamples):
         print("Initializing network...")
@@ -165,17 +168,46 @@ class Iris:
 
     # corrects weight values. This is where the learning happens.
     def exactDiscipline(self, exampleNumber):
-        pass
+        # First, a bunch of variables...
+        target = self.trainingExamples[exampleNumber].target
+        outputNodesAlias = self.neuralNetwork[len(self.neuralNetwork) - 1]
+
+        targetArray = []
+        resultArray = []
+        # populate the target array
+        for i in range(self.nodeLayersArray[len(self.nodeLayersArray) - 1]):
+            targetArray.append(0)
+        # now convert it to binary format
+        targetArray[target] = 1
+        # populate the result array. This is the actual output of the network.
+        for i in range(len(outputNodesAlias)):
+            resultArray.append(outputNodesAlias[i].value)
+
+        # Right, that's enough with the variables. Now on to DISCIPLINE.
+        # First, a comparison.
+        badNeuron = -1  # innocent until proven guilty. A -1 denotes innocence. This is a fact, I am a lawyer.
+        for i in range(len(targetArray)):
+            if targetArray[i] != resultArray[i]:
+                badNeuron = i  # YOU HAVE FAILED US
+
+        if badNeuron == -1:  # Good on you, neuron. Move along.
+            pass
+        else:  # ITS TIME FOR YOUR RE-EDUCATION, SINFUL NEURON
+            neuronAlias = outputNodesAlias[badNeuron].connections[0]
+            # technically, we work with Connections here, but I still blame the neuron.
+            for i in range(len(neuronAlias.incomingConnections)):
+                connection = neuronAlias.incomingConnections[i]
+                connection.weight = connection.weight - (self.learningRate * (connection.weightedValue - target) * neuronAlias.outputValue)
 
     # prints the network in its own html file. So fancy.
-    def printNetwork(self):
+    def printNetwork(self, neuralNetwork):
         # i corresponds to <tr>s.
         tableContentString = "<table><tr>"
-        for i in range(len(self.neuralNetwork)):
+        for i in range(len(neuralNetwork)):
             # j corresponds to <td>s.
             tableContentString += "<td>"
-            for j in range(len(self.neuralNetwork[i])):
-                tableContentString += self.stringify(i, j) + "<br>"
+            for j in range(len(neuralNetwork[i])):
+                tableContentString += self.stringify(neuralNetwork, i, j) + "<br>"
             # finisher strings below. Don't panic.
             tableContentString += "</td>"
         tableContentString += "</tr></table>"
@@ -189,9 +221,9 @@ class Iris:
         file.close()
 
     # makes a fancy-looking string object for each type of object in the network
-    def stringify(self, i, j):
+    def stringify(self, neuralNetwork, i, j):
         fancyString = ""
-        objectAlias = self.neuralNetwork[i][j]
+        objectAlias = neuralNetwork[i][j]
 
         # handle BOTH input AND output nodes
         if isinstance(objectAlias, BM.IONode):
@@ -221,9 +253,9 @@ class Iris:
             fancyString = str(objectAlias.inputObject.networkIndexRef)
             # makes sure that everything lines up pretty because the negative signs are triggering my OCD
             if objectAlias.weight >= 0:
-                fancyString += "<b>---w: " + str(objectAlias.weight)
+                fancyString += "<b>---w: " + str(round(objectAlias.weight, 1))
             else:
-                fancyString += "<b>---w:" + str(objectAlias.weight)
+                fancyString += "<b>---w:" + str(round(objectAlias.weight, 1))
             # same here
             if objectAlias.weightedValue >= 0:
                 fancyString += " v: " + str(round(objectAlias.weightedValue, 1)) + "---</b>"

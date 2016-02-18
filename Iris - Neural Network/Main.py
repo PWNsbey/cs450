@@ -24,3 +24,4 @@ workingDatasets = wizard.organize_data()
 nodeLayersArray = [3]  # LAST NEURON LAYER SHOULD BE DETERMINED BY NUMBER OF POSSIBLE TARGETS
 Iris = Iris()
 Iris.train(workingDatasets[0], nodeLayersArray)
+Iris.printNetwork(Iris.neuralNetwork)
