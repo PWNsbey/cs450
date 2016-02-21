@@ -9,6 +9,7 @@ print("Dataset values:")
 # Show the data (the attributes of each example)
 print(dataset.data)
 
+
 # Show the target values (in numeric format) of each example
 print(dataset.target)
 
@@ -24,4 +25,5 @@ workingDatasets = wizard.organize_data()
 nodeLayersArray = [3]  # LAST NEURON LAYER SHOULD BE DETERMINED BY NUMBER OF POSSIBLE TARGETS
 Iris = Iris()
 Iris.train(workingDatasets[0], nodeLayersArray)
+Iris.test(workingDatasets[1])
 Iris.printNetwork(Iris.neuralNetwork)

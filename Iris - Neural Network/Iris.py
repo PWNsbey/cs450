@@ -12,27 +12,39 @@ class Iris:
 
         # essentially a 2D array. holds each 'column' of the network.
         self.neuralNetwork = []
+        # this holds each iteration of the network between training batches.
+        self.networkArchive = []
+        self.accuracyArchive = []
+        self.validAccuracyArchive = []
 
         # how fast weights are modified
-        self.learningRate = .2
+        self.learningRate = .1
 
         # the accuracy of this version of Iris! Given in percentage (float between 0 and 1)
         self.accuracy = 0
+        self.validAccuracy = 0  # the accuracy of the validation set
 
     def train(self, trainingExamples, nodeLayersArray):
         self.trainingExamples = trainingExamples
         self.nodeLayersArray = nodeLayersArray
 
+        # clear the network
+        for i in range(len(self.neuralNetwork)):
+            self.neuralNetwork.pop()
+        # reset the accuracy
+        self.accuracy = 0
+
         # split the examples into a training set and a validation set...
-        fifthOfList = int(len(trainingExamples) / 5)
-        self.validationExamples = trainingExamples.copy()
+        fifthOfList = int(len(self.trainingExamples) / 5)
+        self.validationExamples = self.trainingExamples.copy()
         for i in range(0, fifthOfList * 4):
             self.validationExamples.pop()
-        for i in range(fifthOfList * 4, len(trainingExamples)):
+        for i in range(fifthOfList * 4, len(self.trainingExamples)):
             self.trainingExamples.pop()
+        random.shuffle(self.trainingExamples)
 
         # initialize the neural network
-        self.initializeNetwork(trainingExamples)
+        self.initializeNetwork(self.trainingExamples)
         self.connectNetLayers()
         self.updateNetwork(0)
 
@@ -41,13 +53,24 @@ class Iris:
             self.updateNetwork(i)  # standard - just moves values through the network
             self.exactDiscipline(i)  # actually modifies the weights. This is where the learning happens.
 
+        self.test(self.validationExamples)
+        self.networkArchive.append(self.neuralNetwork)
+        self.accuracyArchive.append(self.accuracy)
+
     def test(self, testingExamples):
         numCorrect = 0  # what it says on the tin
-        for i in range(testingExamples):
+        for i in range(len(testingExamples)):
             self.updateNetwork(i)  # just the standard stuff - no learning
 
             # lets check for accuracy now.
+            outputNodesAlias = self.neuralNetwork[len(self.neuralNetwork) - 1]
+            target = testingExamples[i].target
 
+            badNeurons = self.findBadNeurons(i, outputNodesAlias, target)
+            if badNeurons.count(True) == 0:
+                numCorrect += 1
+
+        self.accuracy = round(numCorrect/len(testingExamples), 2)
 
     def initializeNetwork(self, trainingExamples):
         print("Initializing network...")
@@ -176,10 +199,35 @@ class Iris:
 
     # corrects weight values. This is where the learning happens.
     def exactDiscipline(self, exampleNumber):
-        # First, a bunch of variables...
-        target = self.trainingExamples[exampleNumber].target
         outputNodesAlias = self.neuralNetwork[len(self.neuralNetwork) - 1]
+        target = self.trainingExamples[exampleNumber].target
 
+        targetArray = []
+        # populate the target array
+        for i in range(self.nodeLayersArray[len(self.nodeLayersArray) - 1]):
+            targetArray.append(0)
+        # now convert it to binary format
+        targetArray[target] = 1
+
+        badNeurons = self.findBadNeurons(exampleNumber, outputNodesAlias, target)
+
+        for i in range(len(badNeurons)):
+            if badNeurons[i] == False:  # Good on you, neuron. Move along.
+                pass
+            else:  # ITS TIME FOR YOUR RE-EDUCATION, SINFUL NEURON
+                neuronAlias = outputNodesAlias[badNeurons[i]].connections[0]
+                output = neuronAlias.outputValue
+                # technically, we work with Connections here, but I still blame the neuron.
+                for j in range(len(neuronAlias.incomingConnections)):
+                    connection = neuronAlias.incomingConnections[j]
+                    outputError = output * (1 - output) * (output - targetArray[i])
+                    connection.weight = connection.weight - (self.learningRate) * outputError * connection.weightedValue
+                    print("weight set to", connection.weight)
+
+    # returns a list of all the neurons that don't line up with the targets
+    def findBadNeurons(self, exampleNumber, outputNodesAlias, target):
+        # First, a bunch of variables...
+        badNeurons = []
         targetArray = []
         resultArray = []
         # populate the target array
@@ -191,22 +239,15 @@ class Iris:
         for i in range(len(outputNodesAlias)):
             resultArray.append(outputNodesAlias[i].value)
 
-        # TODO: PUT THIS IN IT'S OWN "CHECKER" FUNCTION. ALSO BE SURE *ALL* BAD NEURONS GET DISCIPLINED
         # Right, that's enough with the variables. Now on to DISCIPLINE.
         # First, a comparison.
-        badNeuron = -1  # innocent until proven guilty. A -1 denotes innocence. This is a fact, I am a lawyer.
         for i in range(len(targetArray)):
             if targetArray[i] != resultArray[i]:
-                badNeuron = i  # YOU HAVE FAILED US
+                badNeurons.append(True)  # YOU HAVE FAILED US
+            else:
+                badNeurons.append(False)
 
-        if badNeuron == -1:  # Good on you, neuron. Move along.
-            pass
-        else:  # ITS TIME FOR YOUR RE-EDUCATION, SINFUL NEURON
-            neuronAlias = outputNodesAlias[badNeuron].connections[0]
-            # technically, we work with Connections here, but I still blame the neuron.
-            for i in range(len(neuronAlias.incomingConnections)):
-                connection = neuronAlias.incomingConnections[i]
-                connection.weight = connection.weight - (self.learningRate * (connection.weightedValue - target) * neuronAlias.outputValue)
+        return badNeurons
 
     # prints the network in its own html file. So fancy.
     def printNetwork(self, neuralNetwork):
@@ -219,7 +260,7 @@ class Iris:
                 tableContentString += self.stringify(neuralNetwork, i, j) + "<br>"
             # finisher strings below. Don't panic.
             tableContentString += "</td>"
-        tableContentString += "</tr></table>"
+        tableContentString += "<br><br>This network's accuracy: " + str(self.accuracy) + "</tr></table>"
 
         # this is what actually goes in the file
         headString = "<head><link rel=\"stylesheet\" type=\"text/css\" href=\"stylesheet.css\"/></head>"
